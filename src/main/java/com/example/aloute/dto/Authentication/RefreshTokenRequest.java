@@ -4,15 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.experimental.FieldDefaults;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-@FieldDefaults(level = lombok.AccessLevel.PRIVATE)
-public class LoginResponse {
-    Boolean isLogin;
-    String accessToken;
-    String refreshToken;
+public class RefreshTokenRequest {
+    private String refreshToken;
 }
