@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/jwt
+    username: root
+    password: 123456
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  jwt:
+    secret: "i5dcv0ucg77ltbae3l8s4b4c95efjoze"
+    expiration: 3600000 # 1 hour in milliseconds
