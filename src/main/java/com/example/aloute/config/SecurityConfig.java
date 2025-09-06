@@ -1,6 +1,6 @@
 package com.example.aloute.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+// import org.springframework.beans.factory.annotation.Autowired; // Không còn sử dụng
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +14,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+// import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter; // Không còn sử dụng
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -25,8 +25,9 @@ public class SecurityConfig {
     @Value("${spring.jwt.secret}")
     private String jwtSecret;
     
-    @Autowired
-    private JwtBlacklistFilter jwtBlacklistFilter;
+    // Bỏ JwtBlacklistFilter vì không còn sử dụng blacklist
+    // @Autowired
+    // private JwtBlacklistFilter jwtBlacklistFilter;
     
     private String[] PUBLIC_ENDPOINTS = {
             "/auth/login",
@@ -39,8 +40,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST,PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtBlacklistFilter, UsernamePasswordAuthenticationFilter.class);
+                );
+                // Bỏ JwtBlacklistFilter vì không còn sử dụng blacklist
+                // .addFilterBefore(jwtBlacklistFilter, UsernamePasswordAuthenticationFilter.class);
         http.oauth2ResourceServer(httpSecurityOAuth2ResourceServerConfigurer ->
                 httpSecurityOAuth2ResourceServerConfigurer.jwt(jwtConfigurer -> {
                     jwtConfigurer.decoder(jwtDecoder());

@@ -5,12 +5,12 @@ import com.example.aloute.dto.Authentication.LoginResponse;
 import com.example.aloute.dto.Authentication.LogoutResponse;
 import com.example.aloute.dto.Authentication.RefreshTokenRequest;
 import com.example.aloute.dto.Authentication.TokenResponse;
-import com.example.aloute.entity.BlacklistedToken;
+// import com.example.aloute.entity.BlacklistedToken; // Không còn sử dụng blacklist
 import com.example.aloute.entity.RefreshToken;
 import com.example.aloute.entity.User;
 import com.example.aloute.exception.AppException;
 import com.example.aloute.exception.ErrorCode;
-import com.example.aloute.repository.BlacklistedTokenRepository;
+// import com.example.aloute.repository.BlacklistedTokenRepository; // Không còn sử dụng blacklist
 import com.example.aloute.repository.RefreshTokenRepository;
 import com.example.aloute.repository.UserRepository;
 import com.nimbusds.jose.*;
@@ -39,8 +39,8 @@ public class AuthenticationService {
     PasswordEncoder passwordEncoder;
     @Autowired
     UserRepository userRepository;
-    @Autowired
-    BlacklistedTokenRepository blacklistedTokenRepository;
+    // @Autowired
+    // BlacklistedTokenRepository blacklistedTokenRepository; // Không còn sử dụng blacklist
     @Autowired
     RefreshTokenRepository refreshTokenRepository;
 
@@ -69,7 +69,7 @@ public class AuthenticationService {
                 .issuer("learn-jwt")
                 .claim("user_id", user.getId())
                 .claim("scope", buildScope(user))
-                .expirationTime(new Date(Instant.now().plus(1, ChronoUnit.HOURS).toEpochMilli()))
+                .expirationTime(new Date(Instant.now().plus(5, ChronoUnit.MINUTES).toEpochMilli()))
                 .build();
         Payload payload = new Payload(claimsSet.toJSONObject());
         JWSObject jwsObject = new JWSObject(jwsHeader, payload);
@@ -78,7 +78,7 @@ public class AuthenticationService {
     }
     
     public TokenResponse generateTokens(User user) throws JOSEException {
-        // Tạo access token (1 giờ)
+        // Tạo access token (5 phút)
         String accessToken = generateToken(user);
         
         // Tạo refresh token (7 ngày)
@@ -91,7 +91,7 @@ public class AuthenticationService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .expiresIn(3600) // 1 giờ = 3600 giây
+                .expiresIn(300) // 5 phút = 300 giây
                 .build();
     }
     
@@ -142,9 +142,10 @@ public class AuthenticationService {
     }
     
     
-    public boolean isTokenBlacklisted(String token) {
-        return blacklistedTokenRepository.existsByToken(token);
-    }
+    // Bỏ method isTokenBlacklisted vì không còn sử dụng blacklist
+    // public boolean isTokenBlacklisted(String token) {
+    //     return blacklistedTokenRepository.existsByToken(token);
+    // }
     
     // Refresh token method
     public TokenResponse refreshToken(RefreshTokenRequest request) throws JOSEException {
@@ -177,7 +178,7 @@ public class AuthenticationService {
         }
     }
     
-    // Cập nhật logout để xóa cả refresh token
+    // Cập nhật logout để chỉ revoke refresh token (bỏ blacklist access token)
     public LogoutResponse logout(String token) {
         try {
             System.out.println("Attempting to logout token: " + token.substring(0, Math.min(50, token.length())) + "...");
@@ -189,29 +190,10 @@ public class AuthenticationService {
             
             System.out.println("JWT parsed successfully. Subject: " + username);
             
-            // Kiểm tra token đã bị blacklist chưa
-            if (blacklistedTokenRepository.existsByToken(token)) {
-                System.out.println("Token already blacklisted");
-                return LogoutResponse.builder()
-                        .success(false)
-                        .message("Token đã được logout trước đó")
-                        .build();
-            }
-            
-            // Lưu access token vào blacklist
-            var blacklistedToken = BlacklistedToken.builder()
-                    .token(token)
-                    .blacklistedAt(LocalDateTime.now())
-                    .expiresAt(claims.getExpirationTime().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime())
-                    .username(username)
-                    .build();
-            
-            blacklistedTokenRepository.save(blacklistedToken);
-            
-            // Xóa tất cả refresh token của user
+            // Chỉ xóa tất cả refresh token của user (không blacklist access token)
             refreshTokenRepository.deleteByUsername(username);
             
-            System.out.println("Token blacklisted and refresh tokens revoked successfully");
+            System.out.println("Refresh tokens revoked successfully");
             
             return LogoutResponse.builder()
                     .success(true)
@@ -228,10 +210,9 @@ public class AuthenticationService {
         }
     }
     
-    // Scheduled task để xóa các token đã hết hạn khỏi blacklist và refresh token
+    // Scheduled task để xóa các refresh token đã hết hạn
     @Scheduled(fixedRate = 3600000) // Chạy mỗi giờ
     public void cleanupExpiredTokens() {
-        blacklistedTokenRepository.deleteExpiredTokens(LocalDateTime.now());
         refreshTokenRepository.deleteExpiredTokens(LocalDateTime.now());
     }
 }

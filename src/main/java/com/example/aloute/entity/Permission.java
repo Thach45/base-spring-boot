@@ -2,6 +2,7 @@ package com.example.aloute.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -9,6 +10,7 @@ import lombok.experimental.FieldDefaults;
 @Setter
 @Builder
 @NoArgsConstructor
+@Table(name = "permissions")
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity

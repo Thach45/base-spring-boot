@@ -1,13 +1,17 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/jwt
-    username: root
-    password: 123456
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/alo-ute}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:8888}
+
 #    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
   jwt:
-    secret: "i5dcv0ucg77ltbae3l8s4b4c95efjoze"
-    expiration: 3600000 # 1 hour in milliseconds
+    secret: ${JWT_SECRET:i5dcv0ucg77ltbae3l8s4b4c95efjoze}
+    expiration: ${JWT_EXPIRATION:300000} # 5 minutes in milliseconds
+
+server:
+  port: ${SERVER_PORT:8080}

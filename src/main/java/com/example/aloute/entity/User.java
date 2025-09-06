@@ -13,6 +13,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@Table(name = "users")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class User {
     @Id
