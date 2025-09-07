@@ -1,5 +1,6 @@
 package com.example.social_ute.controller;
 
+import com.example.social_ute.annotation.CurrentUserId;
 import com.example.social_ute.dto.Authentication.LoginDTO;
 import com.example.social_ute.dto.Authentication.LoginResponse;
 import com.example.social_ute.dto.Authentication.LogoutResponse;
@@ -21,6 +22,7 @@ public class AuthenticationController {
     @PostMapping("/login")
     ApiResponse<LoginResponse> login(@RequestBody LoginDTO loginDTO) throws JOSEException {
         LoginResponse login = authenticationService.isLogin(loginDTO);
+       
         ApiResponse<LoginResponse> response = ApiResponse.<LoginResponse>builder()
                 .data(login)
                 .build();

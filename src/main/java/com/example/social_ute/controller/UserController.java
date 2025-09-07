@@ -7,7 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-
+import com.example.social_ute.annotation.CurrentUserId;
 import com.example.social_ute.dto.User.ApiResponse;
 import com.example.social_ute.dto.User.UserCreateDTO;
 import com.example.social_ute.dto.User.UserResponse;
@@ -30,13 +30,13 @@ public class UserController {
 
     @PostMapping("/users")
     // Không yêu cầu xác thực email cho endpoint tạo user
-    User createUser(@RequestBody @Valid UserCreateDTO request) {
+    User createUser(@RequestBody @Valid UserCreateDTO request ) {
         return userService.createUser(request);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/users")
-    ApiResponse<List<User>> getUsers() {
+    ApiResponse<List<User>> getUsers(@CurrentUserId String userId) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         authentication.getAuthorities().forEach(authority -> {
             log.warn(authority.getAuthority().toString());
