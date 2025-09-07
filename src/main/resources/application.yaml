@@ -4,7 +4,6 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:8888}
 
-#    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update
