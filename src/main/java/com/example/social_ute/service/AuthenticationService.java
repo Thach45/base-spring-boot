@@ -4,11 +4,16 @@ import com.example.social_ute.dto.Authentication.LoginDTO;
 import com.example.social_ute.dto.Authentication.LoginResponse;
 import com.example.social_ute.dto.Authentication.LogoutResponse;
 import com.example.social_ute.dto.Authentication.RefreshTokenRequest;
+import com.example.social_ute.dto.Authentication.RegisterDTO;
+import com.example.social_ute.dto.Authentication.RegisterResponse;
 import com.example.social_ute.dto.Authentication.TokenResponse;
+import com.example.social_ute.entity.EmailVerificationToken;
 import com.example.social_ute.entity.RefreshToken;
 import com.example.social_ute.entity.User;
+import com.example.social_ute.enums.UserStatus;
 import com.example.social_ute.exception.AppException;
 import com.example.social_ute.exception.ErrorCode;
+import com.example.social_ute.repository.EmailVerificationTokenRepository;
 import com.example.social_ute.repository.RefreshTokenRepository;
 import com.example.social_ute.repository.UserRepository;
 import com.nimbusds.jose.*;
@@ -21,12 +26,23 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.StringJoiner;
+import java.util.UUID;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.social_ute.helper.EmailTemplateHelper;
 
 @Service
 public class AuthenticationService {
@@ -39,6 +55,11 @@ public class AuthenticationService {
     UserRepository userRepository;
     @Autowired
     RefreshTokenRepository refreshTokenRepository;
+    @Autowired
+    EmailVerificationTokenRepository emailVerificationTokenRepository;
+    
+    @Autowired
+    EmailTemplateHelper emailTemplateHelper;
 
     public LoginResponse isLogin(LoginDTO loginDTO) throws JOSEException {
         var user = userRepository.findByEmail(loginDTO.getEmail())
@@ -64,6 +85,7 @@ public class AuthenticationService {
                 .issuer("alo-ute")
                 .claim("user_id", user.getId())
                 .claim("scope", buildScope(user))
+                .claim("is_email_verified", user.isEmailVerified())
                 .expirationTime(new Date(Instant.now().plus(5, ChronoUnit.MINUTES).toEpochMilli()))
                 .build();
         Payload payload = new Payload(claimsSet.toJSONObject());
@@ -116,6 +138,7 @@ public class AuthenticationService {
                 .subject(user.getEmail())
                 .issuer("alo-ute")
                 .claim("type", "refresh")
+                .claim("is_email_verified", user.isEmailVerified())
                 .expirationTime(new Date(Instant.now().plus(RefreshToken.REFRESH_TOKEN_EXPIRATION_DAYS, ChronoUnit.DAYS).toEpochMilli()))
                 .build();
         Payload payload = new Payload(claimsSet.toJSONObject());
@@ -199,9 +222,187 @@ public class AuthenticationService {
         }
     }
     
+    public RegisterResponse register(@RequestBody RegisterDTO registerDTO) {
+        // Kiểm tra email đã tồn tại chưa
+        if (userRepository.existsByEmail(registerDTO.getEmail())) {
+            throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        // Tạo user mới với status ACTIVE nhưng chưa verify email
+        User user = User.builder()
+                .email(registerDTO.getEmail())
+                .password(passwordEncoder.encode(registerDTO.getPassword()))
+                .fullName(registerDTO.getFullName())
+                .major(registerDTO.getMajor())
+                .schoolYear(registerDTO.getSchoolYear())
+                .bio(registerDTO.getBio())
+                .status(UserStatus.ACTIVE)
+                .isEmailVerified(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        user = userRepository.save(user);
+
+        // Tạo token xác thực email
+        String verificationToken = generateEmailVerificationToken(user);
+        
+        // Gửi email xác thực
+        sendVerificationEmail(user.getEmail(), verificationToken);
+
+        return RegisterResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .status(user.getStatus())
+                .message("Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.")
+                .build();
+    }
+
+    private String generateEmailVerificationToken(User user) {
+        String token = UUID.randomUUID().toString();
+        EmailVerificationToken verificationToken = EmailVerificationToken.builder()
+                .token(token)
+                .user(user)
+                .expiresAt(LocalDateTime.now().plusDays(7)) // Hết hạn sau 7 ngày
+                .build();
+        EmailVerificationToken savedToken = emailVerificationTokenRepository.save(verificationToken);
+        
+        return token;
+    }
+
+    public String verifyEmail(String token) {
+        EmailVerificationToken verificationToken = emailVerificationTokenRepository
+                .findValidToken(token, LocalDateTime.now())
+                .orElseThrow(() -> new AppException(ErrorCode.UNEXPECTED_ERROR));
+
+        User user = verificationToken.getUser();
+        user.setEmailVerified(true);
+        // Không cần thay đổi status vì đã là ACTIVE từ lúc đăng ký
+        userRepository.save(user);
+        System.out.println("User verified successfully: " + user.getEmail());
+        // Xóa token đã sử dụng
+        emailVerificationTokenRepository.delete(verificationToken);
+
+        return "Email đã được xác thực thành công";
+    }
+
+    public String resendVerificationEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.isEmailVerified()) {
+            throw new AppException(ErrorCode.INVALID_OPERATION);
+        }
+
+        // Xóa token cũ nếu có
+        emailVerificationTokenRepository.deleteByUser(user);
+
+        // Tạo token mới
+        String newToken = generateEmailVerificationToken(user);
+        
+        // Gửi email mới với template resend
+        sendResendVerificationEmail(email, newToken);
+
+        return "Email xác thực đã được gửi lại";
+    }
+
+  
+
     // Scheduled task để xóa các refresh token đã hết hạn
-    @Scheduled(fixedRate = 3600000) // Chạy mỗi giờ
+    @Scheduled(fixedRate = 86400000) // Chạy mỗi ngày
     public void cleanupExpiredTokens() {
         refreshTokenRepository.deleteExpiredTokens(LocalDateTime.now());
+    }
+
+    // Scheduled task để xóa tài khoản chưa verify sau 7 ngày
+    @Scheduled(fixedRate = 60000) // Chạy mỗi phút
+    public void cleanupUnverifiedUsers() {
+        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(1); // 1 phút trước
+        
+        // Lấy danh sách user cần xóa để log
+        List<User> usersToDelete = userRepository.findByUnverifiedEmailAndCreatedAtBefore(cutoffTime);
+        System.out.println("Found " + usersToDelete.size() + " unverified users to delete");
+        
+        // Xóa tài khoản chưa verify email
+        userRepository.deleteByUnverifiedEmailAndCreatedAtBefore(cutoffTime);
+        
+        // Xóa các token hết hạn
+        emailVerificationTokenRepository.deleteExpiredTokens(LocalDateTime.now());
+    }
+
+    private void sendVerificationEmail(String email, String token) {
+        try {
+            // Lấy thông tin user để tạo email cá nhân hóa
+            User user = userRepository.findByEmail(email).orElse(null);
+            String fullName = user != null ? user.getFullName() : "Bạn";
+            
+            // Tạo nội dung email HTML
+            String htmlContent = emailTemplateHelper.createVerificationEmailTemplate(token, fullName);
+            
+            HttpClient client = HttpClient.newHttpClient();
+            ObjectMapper mapper = new ObjectMapper();
+            
+            // Tạo request body
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("recipientEmail", email);
+            requestBody.put("content", htmlContent);
+            
+            String jsonBody = mapper.writeValueAsString(requestBody);
+            
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://send-email-self-one.vercel.app/api/email/send"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+            
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                System.out.println("Verification email sent successfully to: " + email);
+            } else {
+                System.err.println("Failed to send verification email. Status: " + response.statusCode());
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error sending verification email: " + e.getMessage());
+        }
+    }
+
+    private void sendResendVerificationEmail(String email, String token) {
+        try {
+            // Lấy thông tin user để tạo email cá nhân hóa
+            User user = userRepository.findByEmail(email).orElse(null);
+            String fullName = user != null ? user.getFullName() : "Bạn";
+            
+            // Tạo nội dung email HTML cho resend
+            String htmlContent = emailTemplateHelper.createResendVerificationEmailTemplate(token, fullName);
+            
+            HttpClient client = HttpClient.newHttpClient();
+            ObjectMapper mapper = new ObjectMapper();
+            
+            // Tạo request body
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("recipientEmail", email);
+            requestBody.put("content", htmlContent);
+            
+            String jsonBody = mapper.writeValueAsString(requestBody);
+            
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://send-email-self-one.vercel.app/api/email/send"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+            
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                System.out.println("Resend verification email sent successfully to: " + email);
+            } else {
+                System.err.println("Failed to send resend verification email. Status: " + response.statusCode());
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error sending resend verification email: " + e.getMessage());
+        }
     }
 }

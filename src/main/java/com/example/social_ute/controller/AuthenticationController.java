@@ -5,7 +5,10 @@ import com.example.social_ute.dto.Authentication.LoginDTO;
 import com.example.social_ute.dto.Authentication.LoginResponse;
 import com.example.social_ute.dto.Authentication.LogoutResponse;
 import com.example.social_ute.dto.Authentication.RefreshTokenRequest;
+import com.example.social_ute.dto.Authentication.RegisterDTO;
+import com.example.social_ute.dto.Authentication.RegisterResponse;
 import com.example.social_ute.dto.Authentication.TokenResponse;
+import com.example.social_ute.dto.Authentication.VerifyEmailRequest;
 import com.example.social_ute.dto.User.ApiResponse;
 import com.example.social_ute.service.AuthenticationService;
 import com.nimbusds.jose.JOSEException;
@@ -48,7 +51,23 @@ public class AuthenticationController {
                 .data(logoutResponse)
                 .build();
     }
-    
+    @PostMapping("/register")
+    public RegisterResponse register(@RequestBody RegisterDTO registerDTO) {
+        return authenticationService.register(registerDTO);
+    }
+    @PostMapping("/verify-email")
+    public ApiResponse<String> verifyEmail(@RequestBody VerifyEmailRequest request) {
+        String result = authenticationService.verifyEmail(request.getToken());
+        return ApiResponse.<String>builder()
+                .code(200)
+                .data(result)
+                .build();
+    }
+
+    // @PostMapping("/resend-verification")
+    // public String resendVerificationEmail(@RequestParam String email) {
+    //     return authenticationService.resendVerificationEmail(email);
+    // }
     @PostMapping("/refresh")
     ApiResponse<TokenResponse> refreshToken(@RequestBody RefreshTokenRequest request) throws JOSEException {
         TokenResponse tokenResponse = authenticationService.refreshToken(request);

@@ -12,6 +12,7 @@ public enum ErrorCode {
     ACCOUNT_LOCKED("Account has been locked", 1008),
     ACCOUNT_DISABLED("Account has been disabled", 1009),
     EMAIL_NOT_VERIFIED("Email address has not been verified", 1010),
+    EMAIL_ALREADY_EXISTS("Email already exists", 1011),
 
     // Validation Errors (2xxx)
     VALIDATION_ERROR("Validation error", 2000),
@@ -23,6 +24,7 @@ public enum ErrorCode {
     FILE_SIZE_EXCEEDED("File size exceeded maximum limit", 2006),
     INVALID_FILE_TYPE("Invalid file type", 2007),
     INVALID_PHONE_NUMBER("Invalid phone number format", 2008),
+
 
     // Resource Errors (3xxx)
     RESOURCE_NOT_FOUND("Requested resource not found", 3001),
