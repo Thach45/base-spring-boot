@@ -59,4 +59,10 @@ public class User {
     
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE})
     Set<Role> roles;
+
+    @OneToMany(mappedBy = "userOne")
+    Set<Friendship> friendshipsAsUserOne;
+
+    @OneToMany(mappedBy = "userTwo")
+    Set<Friendship> friendshipsAsUserTwo;
 }

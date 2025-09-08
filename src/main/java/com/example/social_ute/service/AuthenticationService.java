@@ -314,10 +314,10 @@ public class AuthenticationService {
         refreshTokenRepository.deleteExpiredTokens(LocalDateTime.now());
     }
 
-    // Scheduled task để xóa tài khoản chưa verify sau 7 ngày
-    @Scheduled(fixedRate = 60000) // Chạy mỗi phút
+    // Scheduled task để xóa tài khoản chưa verify sau 8 giờ
+    @Scheduled(fixedRate = 3600000) // Chạy mỗi giờ
     public void cleanupUnverifiedUsers() {
-        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(1); // 1 phút trước
+        LocalDateTime cutoffTime = LocalDateTime.now().minusHours(8); // 8 giờ trước
         
         // Lấy danh sách user cần xóa để log
         List<User> usersToDelete = userRepository.findByUnverifiedEmailAndCreatedAtBefore(cutoffTime);
