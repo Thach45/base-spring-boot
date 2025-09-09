@@ -1,6 +1,7 @@
 package com.example.social_ute.service;
 
-import com.example.social_ute.dto.User.UsersGetDTO;
+import com.example.social_ute.dto.Admin.UserGetDetailDTO;
+import com.example.social_ute.dto.Admin.UsersGetDTO;
 import com.example.social_ute.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -132,10 +133,11 @@ public class UserService {
         userRepository.save(user);
     }
 
+
+    // Get list User with paging and filter
     public Page<UsersGetDTO> getUserWithFilter(String q, String role, String status,
                                                String sortBy, String sortDir,
                                                int page, int size){
-        System.out.println("Search q=" + q + ", role=" + role + ", status=" + status);
         Specification<User> spec = UserSpecification.filterUsers(q,role,status);
         Sort.Direction direction = sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
@@ -150,5 +152,25 @@ public class UserService {
                         .status(user.getStatus().name())
                         .createdAt(user.getCreatedAt())
                         .build());
+    }
+
+    // Get Detail user
+    public UserGetDetailDTO getUserDetail(String id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return UserGetDetailDTO.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .avatarUrl(user.getAvatarUrl())
+                .major(user.getMajor())
+                .schoolYear(user.getSchoolYear())
+                .roles(user.getRoles().stream()
+                        .map(r -> r.getName())
+                        .collect(Collectors.toSet()))
+                .status(user.getStatus().name())
+                .createdAt(user.getCreatedAt())
+                .deletedAt(user.getDeletedAt())
+                .build();
     }
 }

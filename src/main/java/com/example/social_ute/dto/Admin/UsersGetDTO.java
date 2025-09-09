@@ -1,4 +1,4 @@
-package com.example.social_ute.dto.User;
+package com.example.social_ute.dto.Admin;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,20 +1,20 @@
 package com.example.social_ute.controller;
 
-import com.example.social_ute.dto.User.UsersGetDTO;
+import com.example.social_ute.dto.Admin.UserGetDetailDTO;
+import com.example.social_ute.dto.Admin.UsersGetDTO;
+import com.example.social_ute.dto.User.ApiResponse;
 import com.example.social_ute.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/admin/users")
+@RequestMapping("/admin/users")
 @RequiredArgsConstructor
 public class AdminController {
     private final UserService userService;
@@ -40,5 +40,26 @@ public class AdminController {
                 "totalElements", usersGetDTOS.getTotalElements()
         ));
         return ResponseEntity.ok(response);
+    }
+    @GetMapping("/{userId}")
+    public ResponseEntity<?> getUser(@PathVariable String userId){
+        UserGetDetailDTO userDetail =  userService.getUserDetail(userId);
+
+        if(userDetail == null){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.builder()
+                    .code(404)
+                    .message("User not found.")
+                    .data(null)
+                    .build());
+
+        }
+        return  ResponseEntity.ok(
+                ApiResponse.<UserGetDetailDTO>builder()
+                .code(200)
+                .message("User retrieved successfully")
+                .data(userDetail)
+                .build()
+        );
+
     }
 }
