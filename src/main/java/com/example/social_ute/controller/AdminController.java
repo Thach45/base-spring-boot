@@ -1,9 +1,10 @@
 package com.example.social_ute.controller;
 
 import com.example.social_ute.dto.Admin.UserGetDetailDTO;
+import com.example.social_ute.dto.Admin.UserUpdateRequest;
 import com.example.social_ute.dto.Admin.UsersGetDTO;
 import com.example.social_ute.dto.User.ApiResponse;
-import com.example.social_ute.service.UserService;
+import com.example.social_ute.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -17,7 +18,7 @@ import java.util.Map;
 @RequestMapping("/admin/users")
 @RequiredArgsConstructor
 public class AdminController {
-    private final UserService userService;
+    private final AdminService adminService;
     @GetMapping
     public ResponseEntity<?> getAllUsers(
         @RequestParam(required = false) String q,
@@ -28,7 +29,7 @@ public class AdminController {
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ){
-        Page<UsersGetDTO> usersGetDTOS = userService.getUserWithFilter(q, role, status, sortBy, sortDir, page, size);
+        Page<UsersGetDTO> usersGetDTOS = adminService.getUserWithFilter(q, role, status, sortBy, sortDir, page, size);
         Map<String,Object> response = new HashMap<>();
         response.put("code",200);
         response.put("message", "User list retrieved successfully.");
@@ -43,7 +44,7 @@ public class AdminController {
     }
     @GetMapping("/{userId}")
     public ResponseEntity<?> getUser(@PathVariable String userId){
-        UserGetDetailDTO userDetail =  userService.getUserDetail(userId);
+        UserGetDetailDTO userDetail =  adminService.getUserDetail(userId);
 
         if(userDetail == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.builder()
@@ -61,5 +62,17 @@ public class AdminController {
                 .build()
         );
 
+    }
+
+    @PutMapping("/{userId}")
+    public ResponseEntity<?> updateUser(@PathVariable String userId, @RequestBody UserUpdateRequest userUpdateRequest){
+        UserGetDetailDTO userDetail = adminService.UpdateUser(userId,userUpdateRequest);
+        return ResponseEntity.ok(
+                ApiResponse.<UserGetDetailDTO>builder()
+                .code(200)
+                .message("User profile updated successfully.")
+                .data(userDetail)
+                .build()
+        );
     }
 }
