@@ -1,15 +1,20 @@
 package com.example.social_ute.service;
 
+import com.example.social_ute.dto.User.UsersGetDTO;
+import com.example.social_ute.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.example.social_ute.dto.User.UserCreateDTO;
-import com.example.social_ute.dto.User.UserResponse;
 import com.example.social_ute.dto.User.UserUpdateDTO;
 import com.example.social_ute.entity.User;
-import com.example.social_ute.enums.Role;
 import com.example.social_ute.enums.UserStatus;
 import com.example.social_ute.exception.AppException;
 import com.example.social_ute.exception.ErrorCode;
@@ -19,6 +24,7 @@ import com.example.social_ute.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -124,5 +130,25 @@ public class UserService {
         
         user.setEmailVerified(true);
         userRepository.save(user);
+    }
+
+    public Page<UsersGetDTO> getUserWithFilter(String q, String role, String status,
+                                               String sortBy, String sortDir,
+                                               int page, int size){
+        System.out.println("Search q=" + q + ", role=" + role + ", status=" + status);
+        Specification<User> spec = UserSpecification.filterUsers(q,role,status);
+        Sort.Direction direction = sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+        return userRepository.findAll(spec,pageable)
+                .map(user -> UsersGetDTO.builder()
+                        .id(user.getId())
+                        .fullName(user.getFullName())
+                        .email(user.getEmail())
+                        .roles(user.getRoles().stream()
+                                .map(roleObj -> roleObj.getName()) // Role entity -> String
+                                .collect(Collectors.toSet()))
+                        .status(user.getStatus().name())
+                        .createdAt(user.getCreatedAt())
+                        .build());
     }
 }
